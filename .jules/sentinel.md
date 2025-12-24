@@ -1,0 +1,4 @@
+## 2025-12-24 - Input Validation for Simulation Config
+**Vulnerability:** The simulation configuration (`SimConfig`) lacked input validation, allowing negative values for parameters like `days`, `fee_rate`, and `initial_capital`. This could lead to runtime crashes (`IndexError`, `ValueError` from dependencies) or undefined behavior (e.g., money printing with negative fees).
+**Learning:** Even internal simulation tools benefit from defensive programming. Dataclasses in Python provide a convenient `__post_init__` hook for validation that runs immediately upon object creation, failing fast before expensive computations begin.
+**Prevention:** Always implement `__post_init__` or validation properties for configuration objects to enforce invariants (e.g., `fee_rate` must be between 0 and 1).

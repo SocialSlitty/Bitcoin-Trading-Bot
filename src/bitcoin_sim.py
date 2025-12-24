@@ -26,6 +26,22 @@ class SimConfig:
     base_volume: float = 100_000_000  # Base daily volume ($100M)
     simulation_end_date: str = "2024-12-21"  # Fixed for reproducibility
 
+    def __post_init__(self):
+        if self.days <= 0:
+            raise ValueError("Simulation days must be positive.")
+        if self.start_price <= 0:
+            raise ValueError("Start price must be positive.")
+        if self.initial_capital <= 0:
+            raise ValueError("Initial capital must be positive.")
+        if not (0 <= self.fee_rate < 1):
+            raise ValueError("Fee rate must be between 0 and 1.")
+        if self.sigma < 0:
+            raise ValueError("Sigma (volatility) cannot be negative.")
+        if self.base_volume <= 0:
+            raise ValueError("Base volume must be positive.")
+        if self.volume_threshold <= 0:
+            raise ValueError("Volume threshold must be positive.")
+
 
 def generate_synthetic_data(config: SimConfig = None):
     """
