@@ -159,25 +159,34 @@ def run_simulation(df, config: SimConfig = None):
     )
     logger.info("-" * 75)
 
-    for i in range(start_idx, len(df)):
-        today = df.iloc[i]
-        yesterday = df.iloc[i - 1]
+    # ⚡ Performance Optimization:
+    # Pre-extract DataFrame columns to NumPy arrays to avoid expensive .iloc calls in the loop.
+    dates = df["Date"].dt.strftime("%Y-%m-%d").values
+    raw_dates = df["Date"].values
+    prices = df["Close"].values
+    ema_7_values = df["EMA_7"].values
+    sma_30_values = df["SMA_30"].values
+    sma_200_values = df["SMA_200"].values
+    volumes = df["Volume"].values
+    vol_avgs = df["Vol_SMA_10"].values
 
-        current_date = today["Date"].strftime("%Y-%m-%d")
-        price = today["Close"]
-        ema_7 = today["EMA_7"]
-        sma_30 = today["SMA_30"]
-        sma_200 = today["SMA_200"]
-        vol = today["Volume"]
-        vol_avg = today["Vol_SMA_10"]
+    for i in range(start_idx, len(df)):
+        # Access values directly from arrays using index
+        current_date = dates[i]
+        price = prices[i]
+        ema_7 = ema_7_values[i]
+        sma_30 = sma_30_values[i]
+        sma_200 = sma_200_values[i]
+        vol = volumes[i]
+        vol_avg = vol_avgs[i]
 
         # Check Crossover Logic
         # Buy Cross: Yesterday EMA7 <= Yesterday SMA30 AND Today EMA7 > Today SMA30
-        buy_cross = (yesterday["EMA_7"] <= yesterday["SMA_30"]) and (ema_7 > sma_30)
+        buy_cross = (ema_7_values[i - 1] <= sma_30_values[i - 1]) and (ema_7 > sma_30)
 
         # Sell Cross: Today EMA7 < Today SMA30 (Standard Death Cross)
         # Note: The user said "7 EMA crosses BELOW 30 SMA".
-        sell_cross = (yesterday["EMA_7"] >= yesterday["SMA_30"]) and (ema_7 < sma_30)
+        sell_cross = (ema_7_values[i - 1] >= sma_30_values[i - 1]) and (ema_7 < sma_30)
 
         action = "HOLD"
 
@@ -235,7 +244,7 @@ def run_simulation(df, config: SimConfig = None):
 
         daily_ledger.append(
             {
-                "Date": today["Date"],
+                "Date": raw_dates[i],
                 "Price": price,
                 "EMA_7": ema_7,
                 "SMA_30": sma_30,
@@ -250,7 +259,7 @@ def run_simulation(df, config: SimConfig = None):
         )
 
     return (
-        cash + (btc_holdings * df.iloc[-1]["Close"]),
+        cash + (btc_holdings * prices[-1]),
         trades_log,
         pd.DataFrame(daily_ledger),
     )
