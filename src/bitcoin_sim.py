@@ -361,7 +361,13 @@ def plot_results(df, trades_log, filename="trading_simulation.png"):
     # Ensure the file is written within the current working directory
     cwd = os.getcwd()
     abs_path = os.path.abspath(filename)
-    if os.path.commonpath([cwd, abs_path]) != cwd:
+    try:
+        # Use commonpath to check if abs_path is within cwd
+        # This can raise ValueError on Windows if paths are on different drives
+        if os.path.commonpath([cwd, abs_path]) != cwd:
+            raise ValueError(f"Security Error: Filename '{filename}' resolves to '{abs_path}', which is outside the current working directory.")
+    except ValueError:
+        # On Windows, different drives cause ValueError - treat as unsafe
         raise ValueError(f"Security Error: Filename '{filename}' resolves to '{abs_path}', which is outside the current working directory.")
 
     plt.savefig(filename)
