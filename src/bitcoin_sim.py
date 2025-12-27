@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import logging
+from pathlib import Path
 from dataclasses import dataclass
 
 # Configure logging
@@ -295,7 +296,18 @@ def plot_results(df, trades_log, filename="trading_simulation.png"):
         df (pd.DataFrame): DataFrame with OHLCV data and indicators.
         trades_log (list): List of trade dictionaries.
         filename (str): Output filename for the plot.
+
+    Raises:
+        ValueError: If filename attempts path traversal or is outside the current directory.
     """
+    # Security: Prevent path traversal
+    # Ensure the file is written to the current working directory
+    base_dir = Path.cwd().resolve()
+    target_path = (base_dir / filename).resolve()
+
+    if base_dir not in target_path.parents:
+        raise ValueError(f"Security Error: Invalid filename '{filename}'. Path traversal detected.")
+
     # We only plot the last 60 days
     plot_data = df.iloc[-60:].copy()
 
