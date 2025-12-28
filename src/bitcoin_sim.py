@@ -63,42 +63,36 @@ def generate_synthetic_data(config: SimConfig = None):
     sigma = config.sigma
     dt = 1  # Time step
 
-    prices = [config.start_price]
-    volumes = []
+    # Vectorized Geometric Brownian Motion
+    drift = (mu - 0.5 * sigma**2) * dt
+    shocks = sigma * np.sqrt(dt) * np.random.normal(size=config.days)
+    price_ratios = np.exp(drift + shocks)
 
-    for _ in range(config.days):
-        # Geometric Brownian Motion step
-        prev_price = prices[-1]
-        drift = (mu - 0.5 * sigma**2) * dt
-        shock = sigma * np.sqrt(dt) * np.random.normal()
-        price_ratio = np.exp(drift + shock)
-        curr_price = prev_price * price_ratio
+    # Calculate cumulative product to get price path relative to start
+    cumulative_ratios = np.cumprod(price_ratios)
 
-        prices.append(curr_price)
+    # Calculate prices (start_price * cumulative_ratios)
+    generated_prices = config.start_price * cumulative_ratios
+    prices = np.concatenate(([config.start_price], generated_prices))
 
-        # Volume Simulation (correlated with volatility)
-        vol_factor = np.random.lognormal(mean=0, sigma=0.5)
-        price_move_impact = (abs(curr_price - prev_price) / prev_price) * 20
+    # Vectorized Volume Simulation
+    vol_factors = np.random.lognormal(mean=0, sigma=0.5, size=config.days)
 
-        daily_vol = config.base_volume * vol_factor * (1 + price_move_impact)
-        volumes.append(daily_vol)
+    # price_move_impact = abs(curr/prev - 1) * 20
+    # curr/prev is exactly price_ratios
+    price_move_impact = np.abs(price_ratios - 1) * 20
 
-    closes = np.array(prices[1:])
-    opens = np.array(prices[:-1])
+    volumes = config.base_volume * vol_factors * (1 + price_move_impact)
 
-    # Generate High/Low relative to Open/Close
-    highs = []
-    lows = []
+    closes = prices[1:]
+    opens = prices[:-1]
 
-    for o, c in zip(opens, closes):
-        wick_up = np.random.uniform(0, 0.02) * o
-        wick_down = np.random.uniform(0, 0.02) * o
+    # Vectorized High/Low Generation
+    wick_ups = np.random.uniform(0, 0.02, size=config.days) * opens
+    wick_downs = np.random.uniform(0, 0.02, size=config.days) * opens
 
-        high = max(o, c) + wick_up
-        low = min(o, c) - wick_down
-
-        highs.append(high)
-        lows.append(low)
+    highs = np.maximum(opens, closes) + wick_ups
+    lows = np.minimum(opens, closes) - wick_downs
 
     # Use fixed date for reproducibility
     dates = pd.date_range(end=config.simulation_end_date, periods=config.days)
