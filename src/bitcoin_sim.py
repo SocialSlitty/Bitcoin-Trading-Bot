@@ -63,28 +63,36 @@ def generate_synthetic_data(config: SimConfig = None):
     sigma = config.sigma
     dt = 1  # Time step
 
-    prices = [config.start_price]
-    volumes = []
+    # Vectorized Geometric Brownian Motion
+    # 1. Generate all random shocks at once
+    shocks = np.random.normal(size=config.days)
 
-    for _ in range(config.days):
-        # Geometric Brownian Motion step
-        prev_price = prices[-1]
-        drift = (mu - 0.5 * sigma**2) * dt
-        shock = sigma * np.sqrt(dt) * np.random.normal()
-        price_ratio = np.exp(drift + shock)
-        curr_price = prev_price * price_ratio
+    # 2. Calculate daily drifts and diffusion terms
+    drift = (mu - 0.5 * sigma**2) * dt
+    diffusion = sigma * np.sqrt(dt) * shocks
 
-        prices.append(curr_price)
+    # 3. Compute log returns and cumulative sum
+    log_returns = drift + diffusion
+    cum_log_returns = np.cumsum(log_returns)
 
-        # Volume Simulation (correlated with volatility)
-        vol_factor = np.random.lognormal(mean=0, sigma=0.5)
-        price_move_impact = (abs(curr_price - prev_price) / prev_price) * 20
+    # 4. Compute prices path
+    # prices[0] is start_price, prices[1] is start_price * exp(r1), etc.
+    prices = np.zeros(config.days + 1)
+    prices[0] = config.start_price
+    prices[1:] = config.start_price * np.exp(cum_log_returns)
 
-        daily_vol = config.base_volume * vol_factor * (1 + price_move_impact)
-        volumes.append(daily_vol)
+    # Vectorized Volume Simulation
+    vol_factors = np.random.lognormal(mean=0, sigma=0.5, size=config.days)
 
-    closes = np.array(prices[1:])
-    opens = np.array(prices[:-1])
+    # Calculate price move impact vectorially
+    # abs(curr - prev) / prev
+    price_changes = np.abs(np.diff(prices)) / prices[:-1]
+    price_move_impacts = price_changes * 20
+
+    volumes = config.base_volume * vol_factors * (1 + price_move_impacts)
+
+    closes = prices[1:]
+    opens = prices[:-1]
 
     # Generate High/Low relative to Open/Close
     highs = []
