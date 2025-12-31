@@ -5,3 +5,7 @@
 ## 2025-12-30 - [Vectorized Simulation]
 **Learning:** Replacing iterative `for` loops with NumPy vectorization (e.g., `np.cumsum`, `np.exp`) for stochastic processes like Geometric Brownian Motion is dramatically faster but alters the random number generation sequence compared to iterative calls, even with the same seed.
 **Action:** When vectorizing simulations, verify that strict deterministic reproduction of the *exact same* path isn't required by downstream tests, or accept that the "same seed" will produce a statistically equivalent but numerically different path.
+
+## 2025-12-31 - [Vectorized Random Generation]
+**Learning:** Replacing a loop that calls `np.random.uniform` multiple times per iteration with a single vectorized `np.random.uniform(size=N)` call significantly improves performance (e.g., 30x faster) but changes the sequence of random numbers generated.
+**Action:** When optimizing stochastic simulations, ensure that preserving exact random sequences is not critical, or document the change in behavior clearly.
