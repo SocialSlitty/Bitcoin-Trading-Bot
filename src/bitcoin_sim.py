@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import logging
+import pathlib
+import os
 from dataclasses import dataclass
 
 # Configure logging
@@ -363,6 +365,21 @@ def plot_results(df, trades_log, filename="trading_simulation.png"):
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
+
+    # Path Traversal Protection
+    # Resolve absolute paths
+    base_dir = pathlib.Path(os.getcwd()).resolve()
+    target_path = pathlib.Path(filename).resolve()
+
+    # Check if the target path is within the base directory
+    try:
+        # relative_to will raise ValueError if target_path is not relative to base_dir
+        target_path.relative_to(base_dir)
+    except ValueError:
+        raise ValueError(
+            f"Security Error: Invalid file path '{filename}'. Output must be within the current working directory."
+        )
+
     plt.savefig(filename)
     logger.info(f"Plot saved to {filename}")
 
