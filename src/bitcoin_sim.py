@@ -94,19 +94,18 @@ def generate_synthetic_data(config: SimConfig = None):
     closes = prices[1:]
     opens = prices[:-1]
 
-    # Generate High/Low relative to Open/Close
-    highs = []
-    lows = []
+    # Generate High/Low relative to Open/Close (Vectorized)
+    n = len(opens)
+    # Generate random wick percentages for all days at once
+    wick_ups_pct = np.random.uniform(0, 0.02, size=n)
+    wick_downs_pct = np.random.uniform(0, 0.02, size=n)
 
-    for o, c in zip(opens, closes):
-        wick_up = np.random.uniform(0, 0.02) * o
-        wick_down = np.random.uniform(0, 0.02) * o
+    wick_ups = wick_ups_pct * opens
+    wick_downs = wick_downs_pct * opens
 
-        high = max(o, c) + wick_up
-        low = min(o, c) - wick_down
-
-        highs.append(high)
-        lows.append(low)
+    # Calculate Highs and Lows
+    highs = np.maximum(opens, closes) + wick_ups
+    lows = np.minimum(opens, closes) - wick_downs
 
     # Use fixed date for reproducibility
     dates = pd.date_range(end=config.simulation_end_date, periods=config.days)
