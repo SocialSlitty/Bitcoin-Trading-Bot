@@ -77,9 +77,11 @@ def generate_synthetic_data(config: SimConfig = None):
 
     # 4. Compute prices path
     # prices[0] is start_price, prices[1] is start_price * exp(r1), etc.
-    prices = np.zeros(config.days + 1)
+    prices = np.empty(config.days + 1)
     prices[0] = config.start_price
-    prices[1:] = config.start_price * np.exp(cum_log_returns)
+    # Optimize: Use in-place exp and multiply to avoid temporary array allocation
+    np.exp(cum_log_returns, out=prices[1:])
+    prices[1:] *= config.start_price
 
     # Vectorized Volume Simulation
     vol_factors = np.random.lognormal(mean=0, sigma=0.5, size=config.days)
@@ -108,7 +110,10 @@ def generate_synthetic_data(config: SimConfig = None):
     lows = np.minimum(opens, closes) - wick_downs
 
     # Use fixed date for reproducibility
-    dates = pd.date_range(end=config.simulation_end_date, periods=config.days)
+    # Optimize: Use numpy arithmetic instead of pd.date_range to avoid OutOfBoundsDatetime on large ranges
+    # and improve performance.
+    end_date = np.datetime64(config.simulation_end_date)
+    dates = end_date - np.arange(config.days - 1, -1, -1, dtype="timedelta64[D]")
 
     df = pd.DataFrame(
         {
