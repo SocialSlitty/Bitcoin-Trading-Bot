@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -309,6 +310,10 @@ def plot_results(df, trades_log, filename="trading_simulation.png"):
         trades_log (list): List of trade dictionaries.
         filename (str): Output filename for the plot.
     """
+    # Security: Validate filename to prevent path traversal
+    if os.path.dirname(filename):
+        raise ValueError(f"Security violation: Filename '{filename}' contains path components. Only filenames in the current directory are allowed.")
+
     # We only plot the last 60 days
     plot_data = df.iloc[-60:].copy()
 
