@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -368,6 +369,14 @@ def plot_results(df, trades_log, filename="trading_simulation.png"):
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
+
+    # Security check: Prevent path traversal
+    # Ensure the file is written within the current working directory
+    cwd = os.getcwd()
+    abs_path = os.path.abspath(filename)
+    if os.path.commonpath([cwd, abs_path]) != cwd:
+        raise ValueError(f"Security Error: Filename '{filename}' resolves to '{abs_path}', which is outside the current working directory.")
+
     plt.savefig(filename)
     logger.info(f"Plot saved to {filename}")
 
