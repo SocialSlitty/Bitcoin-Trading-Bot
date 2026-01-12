@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import logging
+import pathlib
 from dataclasses import dataclass
 
 # Configure logging
@@ -368,6 +369,13 @@ def plot_results(df, trades_log, filename="trading_simulation.png"):
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
+
+    # Security Check: Prevent Path Traversal
+    output_path = pathlib.Path(filename).resolve()
+    cwd = pathlib.Path.cwd().resolve()
+    if not output_path.is_relative_to(cwd):
+        raise ValueError(f"Security Error: Output path '{filename}' is outside current working directory.")
+
     plt.savefig(filename)
     logger.info(f"Plot saved to {filename}")
 
