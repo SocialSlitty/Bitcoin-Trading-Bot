@@ -64,32 +64,61 @@ def generate_synthetic_data(config: SimConfig = None):
     dt = 1  # Time step
 
     # Vectorized Geometric Brownian Motion
+    # OPTIMIZATION: Use in-place operations to reduce memory allocation
+
     # 1. Generate all random shocks at once
-    shocks = np.random.normal(size=config.days)
+    # We use 'log_returns' as the buffer for all subsequent inplace transformations
+    log_returns = np.random.normal(size=config.days)
 
-    # 2. Calculate daily drifts and diffusion terms
-    drift = (mu - 0.5 * sigma**2) * dt
-    diffusion = sigma * np.sqrt(dt) * shocks
+    # 2. Transform standard normal to geometric brownian motion log returns (in-place)
+    # Formula: log_return = (mu - 0.5 * sigma^2) * dt + sigma * sqrt(dt) * Z
+    term1 = (mu - 0.5 * sigma**2) * dt
+    term2 = sigma * np.sqrt(dt)
 
-    # 3. Compute log returns and cumulative sum
-    log_returns = drift + diffusion
-    cum_log_returns = np.cumsum(log_returns)
+    # Apply diffusion term inplace
+    log_returns *= term2
+    # Apply drift term inplace
+    log_returns += term1
+
+    # 3. Compute Cumulative Sum (in-place)
+    # log_returns now holds cum_log_returns
+    np.cumsum(log_returns, out=log_returns)
 
     # 4. Compute prices path
     # prices[0] is start_price, prices[1] is start_price * exp(r1), etc.
     prices = np.zeros(config.days + 1)
     prices[0] = config.start_price
-    prices[1:] = config.start_price * np.exp(cum_log_returns)
+
+    # Compute exp(cum_log_returns) inplace
+    np.exp(log_returns, out=log_returns)
+    # Scale by start_price inplace
+    log_returns *= config.start_price
+
+    # Assign to prices array
+    prices[1:] = log_returns
 
     # Vectorized Volume Simulation
     vol_factors = np.random.lognormal(mean=0, sigma=0.5, size=config.days)
 
     # Calculate price move impact vectorially
     # abs(curr - prev) / prev
-    price_changes = np.abs(np.diff(prices)) / prices[:-1]
-    price_move_impacts = price_changes * 20
+    # Optimization: perform diff and abs inplace where possible to save memory
+    price_changes = np.diff(prices)
+    np.abs(price_changes, out=price_changes)
+    price_changes /= prices[:-1]
 
-    volumes = config.base_volume * vol_factors * (1 + price_move_impacts)
+    # Reuse price_changes for impact calculation
+    price_changes *= 20  # price_move_impacts
+
+    # Reuse vol_factors for volume calculation
+    # volumes = base_volume * vol_factors * (1 + price_move_impacts)
+    # 1 + price_move_impacts
+    price_changes += 1
+
+    vol_factors *= config.base_volume
+    vol_factors *= price_changes
+
+    volumes = vol_factors
 
     closes = prices[1:]
     opens = prices[:-1]
