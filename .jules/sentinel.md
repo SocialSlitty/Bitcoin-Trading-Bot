@@ -1,0 +1,4 @@
+## 2024-01-14 - Path Traversal in Simulation Outputs
+**Vulnerability:** The `plot_results` function in `src/bitcoin_sim.py` accepted a `filename` argument that was passed directly to `matplotlib.pyplot.savefig` without validation. This allowed an attacker (or a misconfigured script) to write files to arbitrary locations on the file system, potentially overwriting critical files or saving sensitive data to public directories.
+**Learning:** Even internal helper functions like `plot_results` can be security risks if they are exposed or if the assumption of "trusted input" is violated later. Libraries like `matplotlib` do not sanitize paths.
+**Prevention:** Validate file paths to ensure they stay within intended boundaries. Using `os.path.dirname(filename)` to check for directory components enforces that files are only written to the current working directory.
