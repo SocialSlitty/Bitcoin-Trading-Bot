@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import logging
+import os
 from dataclasses import dataclass
 
 # Configure logging
@@ -308,7 +309,14 @@ def plot_results(df, trades_log, filename="trading_simulation.png"):
         df (pd.DataFrame): DataFrame with OHLCV data and indicators.
         trades_log (list): List of trade dictionaries.
         filename (str): Output filename for the plot.
+
+    Raises:
+        ValueError: If filename contains path components (security risk).
     """
+    # Security Check: Prevent path traversal
+    if os.path.basename(filename) != filename:
+        raise ValueError(f"Security Error: Filename '{filename}' contains path components. Only filenames in the current directory are allowed.")
+
     # We only plot the last 60 days
     plot_data = df.iloc[-60:].copy()
 

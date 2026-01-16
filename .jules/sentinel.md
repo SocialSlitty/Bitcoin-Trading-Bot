@@ -1,0 +1,4 @@
+## 2026-01-16 - Path Traversal in File Output
+**Vulnerability:** The `plot_results` function in `src/bitcoin_sim.py` accepted a `filename` argument and used it directly in `plt.savefig(filename)` without validation. This allowed callers to write files to arbitrary locations on the filesystem (e.g., `../../malicious.png`) if they had permissions.
+**Learning:** Even in internal simulation tools, file I/O sinks must be protected. Assuming "trusted input" for file paths is a common oversight that can lead to file overwrites or arbitrary file write vulnerabilities if the tool is ever exposed to external inputs (e.g., via a web wrapper or shared environment).
+**Prevention:** Always validate file paths. For simple use cases, enforcing that `os.path.basename(filename) == filename` is a robust way to ensure files are only written to the current working directory.
