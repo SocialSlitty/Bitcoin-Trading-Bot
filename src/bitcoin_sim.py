@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import logging
+import os
 from dataclasses import dataclass
 
 # Configure logging
@@ -309,6 +310,14 @@ def plot_results(df, trades_log, filename="trading_simulation.png"):
         trades_log (list): List of trade dictionaries.
         filename (str): Output filename for the plot.
     """
+    # Security Check: Prevent path traversal
+    # Ensure the filename does not contain directory separators or parent directory references
+    if os.path.dirname(filename) != "":
+        raise ValueError(
+            f"Security Error: filename '{filename}' contains path components. "
+            "Saving to arbitrary directories is not allowed to prevent path traversal."
+        )
+
     # We only plot the last 60 days
     plot_data = df.iloc[-60:].copy()
 
