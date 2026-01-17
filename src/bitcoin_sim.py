@@ -65,31 +65,51 @@ def generate_synthetic_data(config: SimConfig = None):
 
     # Vectorized Geometric Brownian Motion
     # 1. Generate all random shocks at once
-    shocks = np.random.normal(size=config.days)
+    # OPTIMIZATION: Use in-place operations on a single buffer to avoid multiple large array allocations.
+    buffer = np.random.normal(size=config.days)
 
     # 2. Calculate daily drifts and diffusion terms
     drift = (mu - 0.5 * sigma**2) * dt
-    diffusion = sigma * np.sqrt(dt) * shocks
+
+    # diffusion = sigma * np.sqrt(dt) * shocks -> In-place
+    buffer *= (sigma * np.sqrt(dt))
 
     # 3. Compute log returns and cumulative sum
-    log_returns = drift + diffusion
-    cum_log_returns = np.cumsum(log_returns)
+    # log_returns = drift + diffusion -> In-place
+    buffer += drift
+
+    # cum_log_returns = np.cumsum(log_returns) -> In-place
+    np.cumsum(buffer, out=buffer)
 
     # 4. Compute prices path
     # prices[0] is start_price, prices[1] is start_price * exp(r1), etc.
-    prices = np.zeros(config.days + 1)
+    prices = np.empty(config.days + 1)
     prices[0] = config.start_price
-    prices[1:] = config.start_price * np.exp(cum_log_returns)
+
+    # prices[1:] = config.start_price * np.exp(cum_log_returns) -> In-place
+    np.exp(buffer, out=buffer)
+    buffer *= config.start_price
+    prices[1:] = buffer
 
     # Vectorized Volume Simulation
     vol_factors = np.random.lognormal(mean=0, sigma=0.5, size=config.days)
 
     # Calculate price move impact vectorially
-    # abs(curr - prev) / prev
-    price_changes = np.abs(np.diff(prices)) / prices[:-1]
-    price_move_impacts = price_changes * 20
+    # Reuse buffer which now holds prices[1:] (because of copy to prices[1:])
+    # We need: abs(curr - prev) / prev  => abs(prices[1:] - prices[:-1]) / prices[:-1]
 
-    volumes = config.base_volume * vol_factors * (1 + price_move_impacts)
+    # buffer currently matches prices[1:]
+    buffer -= prices[:-1]
+    np.abs(buffer, out=buffer)
+    buffer /= prices[:-1]
+    buffer *= 20
+
+    # buffer is now price_move_impacts
+    # volumes = config.base_volume * vol_factors * (1 + price_move_impacts)
+    buffer += 1
+    buffer *= vol_factors
+    buffer *= config.base_volume
+    volumes = buffer
 
     closes = prices[1:]
     opens = prices[:-1]
