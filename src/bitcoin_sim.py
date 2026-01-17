@@ -188,40 +188,34 @@ def run_simulation(df, config: SimConfig = None):
     )
     logger.info("-" * 75)
 
-    # Pre-extract numpy arrays for performance (avoiding iloc in loop)
-    dates_series = df["Date"]
-    dates = dates_series.values
+    # ⚡ Performance Optimization:
+    # Pre-extract DataFrame columns to NumPy arrays to avoid expensive .iloc calls in the loop.
+    dates = df["Date"].dt.strftime("%Y-%m-%d").values
+    raw_dates = df["Date"].values
     prices = df["Close"].values
-    ema_7s = df["EMA_7"].values
-    sma_30s = df["SMA_30"].values
-    sma_200s = df["SMA_200"].values
+    ema_7_values = df["EMA_7"].values
+    sma_30_values = df["SMA_30"].values
+    sma_200_values = df["SMA_200"].values
     volumes = df["Volume"].values
     vol_avgs = df["Vol_SMA_10"].values
 
     for i in range(start_idx, len(df)):
-        # Direct numpy array access is much faster than df.iloc[i]
-        today_date_val = dates[i]
-        # Format date for logging/output (handling numpy datetime64)
-        current_date = pd.Timestamp(today_date_val).strftime("%Y-%m-%d")
-
+        # Access values directly from arrays using index
+        current_date = dates[i]
         price = prices[i]
-        ema_7 = ema_7s[i]
-        sma_30 = sma_30s[i]
-        sma_200 = sma_200s[i]
+        ema_7 = ema_7_values[i]
+        sma_30 = sma_30_values[i]
+        sma_200 = sma_200_values[i]
         vol = volumes[i]
         vol_avg = vol_avgs[i]
 
-        # Previous day values
-        prev_ema_7 = ema_7s[i - 1]
-        prev_sma_30 = sma_30s[i - 1]
-
         # Check Crossover Logic
         # Buy Cross: Yesterday EMA7 <= Yesterday SMA30 AND Today EMA7 > Today SMA30
-        buy_cross = (prev_ema_7 <= prev_sma_30) and (ema_7 > sma_30)
+        buy_cross = (ema_7_values[i - 1] <= sma_30_values[i - 1]) and (ema_7 > sma_30)
 
         # Sell Cross: Today EMA7 < Today SMA30 (Standard Death Cross)
         # Note: The user said "7 EMA crosses BELOW 30 SMA".
-        sell_cross = (prev_ema_7 >= prev_sma_30) and (ema_7 < sma_30)
+        sell_cross = (ema_7_values[i - 1] >= sma_30_values[i - 1]) and (ema_7 < sma_30)
 
         action = "HOLD"
 
@@ -279,7 +273,7 @@ def run_simulation(df, config: SimConfig = None):
 
         daily_ledger.append(
             {
-                "Date": today_date_val,
+                "Date": raw_dates[i],
                 "Price": price,
                 "EMA_7": ema_7,
                 "SMA_30": sma_30,
