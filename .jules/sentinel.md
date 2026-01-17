@@ -1,0 +1,4 @@
+## 2026-01-17 - Path Traversal in File Output
+**Vulnerability:** The `plot_results` function accepted an arbitrary `filename` argument and passed it directly to `plt.savefig()`. This allowed path traversal (e.g., `../malicious.png`) or writing to absolute paths (e.g., `/tmp/overwrite.png`), potentially overwriting sensitive files if the script is run with elevated privileges or in a shared environment.
+**Learning:** Even internal helper functions like "save plot" can be attack vectors if they accept unvalidated path strings. In Python, `os.path.dirname(filename) != ""` is a simple check to enforce "current directory only".
+**Prevention:** Validate all file paths coming from external arguments. For file outputs, enforce that they are either strictly filenames (no path components) or resolve to a safe, whitelisted directory using `os.path.abspath` and `os.path.commonpath`.
