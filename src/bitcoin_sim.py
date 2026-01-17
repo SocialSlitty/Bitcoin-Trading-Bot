@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import logging
 from dataclasses import dataclass
+from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
@@ -309,6 +310,10 @@ def plot_results(df, trades_log, filename="trading_simulation.png"):
         trades_log (list): List of trade dictionaries.
         filename (str): Output filename for the plot.
     """
+    # Security check: Ensure filename is just a name, not a path
+    if Path(filename).name != filename or "\\" in filename or "/" in filename:
+        raise ValueError("filename must not contain path components")
+
     # We only plot the last 60 days
     plot_data = df.iloc[-60:].copy()
 
