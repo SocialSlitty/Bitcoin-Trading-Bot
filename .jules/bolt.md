@@ -1,7 +1,7 @@
-## 2024-12-23 - [Pandas Loop Optimization]
-**Learning:** Iterating through a Pandas DataFrame using `.iloc` inside a loop is a significant performance bottleneck because it creates a new Series object for each row.
-**Action:** Always pre-extract columns to NumPy arrays (`df['col'].values`) before iterating if row-by-row processing is required (e.g., for stateful simulations). This simple change can yield 4x-100x speedups.
+## 2024-03-23 - Date Formatting Anti-Pattern
+**Learning:** `pd.Timestamp.strftime` inside a loop is extremely slow. Using `np.datetime_as_string` vectorized outside the loop is ~9-15x faster. However, if the loop processes only a slice of the data, the vectorization must also be sliced to avoid O(N) overhead for unused data.
+**Action:** Always slice the source array before applying expensive vector operations if only a subset is needed.
 
-## 2025-12-30 - [Vectorized Simulation]
-**Learning:** Replacing iterative `for` loops with NumPy vectorization (e.g., `np.cumsum`, `np.exp`) for stochastic processes like Geometric Brownian Motion is dramatically faster but alters the random number generation sequence compared to iterative calls, even with the same seed.
-**Action:** When vectorizing simulations, verify that strict deterministic reproduction of the *exact same* path isn't required by downstream tests, or accept that the "same seed" will produce a statistically equivalent but numerically different path.
+## 2024-03-23 - Optimization Scope Alignment
+**Learning:** Optimizing a full dataset operation (O(N)) when the consuming loop is fixed-window (O(1)) can introduce a regression if not sliced correctly.
+**Action:** Verify the loop range and slice the pre-calculated arrays to match `range(start_idx, end_idx)`.
