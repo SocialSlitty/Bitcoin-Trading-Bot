@@ -5,3 +5,7 @@
 ## 2025-12-30 - [Vectorized Simulation]
 **Learning:** Replacing iterative `for` loops with NumPy vectorization (e.g., `np.cumsum`, `np.exp`) for stochastic processes like Geometric Brownian Motion is dramatically faster but alters the random number generation sequence compared to iterative calls, even with the same seed.
 **Action:** When vectorizing simulations, verify that strict deterministic reproduction of the *exact same* path isn't required by downstream tests, or accept that the "same seed" will produce a statistically equivalent but numerically different path.
+
+## 2026-01-19 - [Date Formatting in Loops]
+**Learning:** Formatting dates inside a loop using `pd.Timestamp.strftime` is a major performance bottleneck.
+**Action:** Pre-calculate date strings using `np.datetime_as_string` outside the loop. This yields significant speedups (~7x in benchmarks) and removes pandas overhead from the loop.
