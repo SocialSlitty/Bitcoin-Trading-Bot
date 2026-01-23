@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -41,6 +42,9 @@ class SimConfig:
             raise ValueError("fee_rate must be non-negative")
         if self.volume_threshold < 0:
             raise ValueError("volume_threshold must be non-negative")
+        # Security: Prevent DoS via memory exhaustion
+        if self.days > 36500:
+            raise ValueError("days must be <= 36500 (100 years)")
 
 
 def generate_synthetic_data(config: SimConfig = None):
@@ -309,6 +313,10 @@ def plot_results(df, trades_log, filename="trading_simulation.png"):
         trades_log (list): List of trade dictionaries.
         filename (str): Output filename for the plot.
     """
+    # Security: Prevent path traversal
+    if os.path.dirname(filename):
+        raise ValueError(f"Filename must not contain path components: {filename}")
+
     # We only plot the last 60 days
     plot_data = df.iloc[-60:].copy()
 
