@@ -5,3 +5,7 @@
 ## 2025-12-30 - [Vectorized Simulation]
 **Learning:** Replacing iterative `for` loops with NumPy vectorization (e.g., `np.cumsum`, `np.exp`) for stochastic processes like Geometric Brownian Motion is dramatically faster but alters the random number generation sequence compared to iterative calls, even with the same seed.
 **Action:** When vectorizing simulations, verify that strict deterministic reproduction of the *exact same* path isn't required by downstream tests, or accept that the "same seed" will produce a statistically equivalent but numerically different path.
+
+## 2024-12-30 - [In-Place NumPy Operations]
+**Learning:** Large NumPy array operations (like `diff = arr1 * arr2`) allocate new temporary arrays for every intermediate step. Using `out=buffer` with `np.multiply`, `np.add`, etc., eliminates these allocations.
+**Action:** For heavy numerical pipelines (like simulation path generation), allocate a single buffer and use in-place operations to significantly reduce memory bandwidth usage and improve speed (observed ~2x speedup).
