@@ -63,49 +63,86 @@ def generate_synthetic_data(config: SimConfig = None):
     sigma = config.sigma
     dt = 1  # Time step
 
-    # Vectorized Geometric Brownian Motion
+    # Vectorized Geometric Brownian Motion (In-place Optimization)
     # 1. Generate all random shocks at once
-    shocks = np.random.normal(size=config.days)
+    # We use this buffer for multiple intermediate calculations to save memory
+    buffer = np.random.normal(size=config.days)
 
     # 2. Calculate daily drifts and diffusion terms
-    drift = (mu - 0.5 * sigma**2) * dt
-    diffusion = sigma * np.sqrt(dt) * shocks
+    # In-place diffusion: buffer = buffer * (sigma * sqrt(dt))
+    np.multiply(buffer, sigma * np.sqrt(dt), out=buffer)
 
     # 3. Compute log returns and cumulative sum
-    log_returns = drift + diffusion
-    cum_log_returns = np.cumsum(log_returns)
+    # In-place log_returns: buffer = buffer + drift
+    drift = (mu - 0.5 * sigma**2) * dt
+    np.add(buffer, drift, out=buffer)
+
+    # In-place cumsum: buffer = cumsum(buffer)
+    np.cumsum(buffer, out=buffer)
 
     # 4. Compute prices path
     # prices[0] is start_price, prices[1] is start_price * exp(r1), etc.
-    prices = np.zeros(config.days + 1)
+    prices = np.empty(config.days + 1)
     prices[0] = config.start_price
-    prices[1:] = config.start_price * np.exp(cum_log_returns)
+
+    # In-place exp: prices[1:] = exp(buffer)
+    np.exp(buffer, out=prices[1:])
+
+    # In-place multiply: prices[1:] = prices[1:] * start_price
+    np.multiply(prices[1:], config.start_price, out=prices[1:])
 
     # Vectorized Volume Simulation
+    # Reuse buffer for price changes calculation to save allocation
+    # buffer was cum_log_returns, now we use it for price_changes
+    # price_changes = (prices[1:] - prices[:-1]) / prices[:-1]
+    # buffer = prices[1:] - prices[:-1]
+    np.subtract(prices[1:], prices[:-1], out=buffer)
+    # buffer = abs(buffer)
+    np.abs(buffer, out=buffer)
+    # buffer = buffer / prices[:-1]
+    np.divide(buffer, prices[:-1], out=buffer)
+
+    # price_move_impacts = buffer * 20.
+    # Let's multiply by 20 in-place
+    np.multiply(buffer, 20, out=buffer)
+    # buffer = 1 + buffer (1 + price_move_impacts)
+    np.add(buffer, 1, out=buffer)
+
     vol_factors = np.random.lognormal(mean=0, sigma=0.5, size=config.days)
-
-    # Calculate price move impact vectorially
-    # abs(curr - prev) / prev
-    price_changes = np.abs(np.diff(prices)) / prices[:-1]
-    price_move_impacts = price_changes * 20
-
-    volumes = config.base_volume * vol_factors * (1 + price_move_impacts)
+    # volumes = base_volume * vol_factors * buffer
+    # accumulate into vol_factors to save 'volumes' allocation
+    np.multiply(vol_factors, buffer, out=vol_factors)
+    np.multiply(vol_factors, config.base_volume, out=vol_factors)
+    volumes = vol_factors
 
     closes = prices[1:]
     opens = prices[:-1]
 
     # Generate High/Low relative to Open/Close (Vectorized)
     n = len(opens)
-    # Generate random wick percentages for all days at once
-    wick_ups_pct = np.random.uniform(0, 0.02, size=n)
-    wick_downs_pct = np.random.uniform(0, 0.02, size=n)
 
-    wick_ups = wick_ups_pct * opens
-    wick_downs = wick_downs_pct * opens
+    # Reuse buffer for highs calculation
+    # buffer = max(opens, closes)
+    np.maximum(opens, closes, out=buffer)
 
-    # Calculate Highs and Lows
-    highs = np.maximum(opens, closes) + wick_ups
-    lows = np.minimum(opens, closes) - wick_downs
+    # Generate random wick percentages
+    # We allocate wick_ups but calculate in-place to save intermediate 'wick_ups_pct * opens' array
+    wick_ups = np.random.uniform(0, 0.02, size=n)
+    np.multiply(wick_ups, opens, out=wick_ups)
+
+    # highs = buffer + wick_ups
+    # Reuse buffer AS highs
+    np.add(buffer, wick_ups, out=buffer)
+    highs = buffer
+
+    # Lows
+    # lows = min(opens, closes) - wick_downs
+    lows = np.minimum(opens, closes)
+
+    wick_downs = np.random.uniform(0, 0.02, size=n)
+    np.multiply(wick_downs, opens, out=wick_downs)
+
+    np.subtract(lows, wick_downs, out=lows)
 
     # Use fixed date for reproducibility
     # OPTIMIZATION: Use numpy arithmetic instead of pd.date_range for performance and robustness
