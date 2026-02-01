@@ -65,21 +65,29 @@ def generate_synthetic_data(config: SimConfig = None):
 
     # Vectorized Geometric Brownian Motion
     # 1. Generate all random shocks at once
-    shocks = np.random.normal(size=config.days)
+    # OPTIMIZATION: Use a single buffer for in-place operations to save memory
+    buffer = np.random.normal(size=config.days)
 
     # 2. Calculate daily drifts and diffusion terms
     drift = (mu - 0.5 * sigma**2) * dt
-    diffusion = sigma * np.sqrt(dt) * shocks
+    # diffusion = sigma * np.sqrt(dt) * shocks (in-place)
+    np.multiply(buffer, sigma * np.sqrt(dt), out=buffer)
 
     # 3. Compute log returns and cumulative sum
-    log_returns = drift + diffusion
-    cum_log_returns = np.cumsum(log_returns)
+    # log_returns = drift + diffusion (in-place)
+    np.add(buffer, drift, out=buffer)
+    # cum_log_returns = np.cumsum(log_returns) (in-place)
+    np.cumsum(buffer, out=buffer)
 
     # 4. Compute prices path
     # prices[0] is start_price, prices[1] is start_price * exp(r1), etc.
     prices = np.zeros(config.days + 1)
     prices[0] = config.start_price
-    prices[1:] = config.start_price * np.exp(cum_log_returns)
+
+    # Calculate exponential and scale by start_price (in-place)
+    np.exp(buffer, out=buffer)
+    np.multiply(buffer, config.start_price, out=buffer)
+    prices[1:] = buffer
 
     # Vectorized Volume Simulation
     vol_factors = np.random.lognormal(mean=0, sigma=0.5, size=config.days)
