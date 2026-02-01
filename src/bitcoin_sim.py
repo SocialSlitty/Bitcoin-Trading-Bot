@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import logging
+import os
 from dataclasses import dataclass
 
 # Configure logging
@@ -368,6 +369,11 @@ def plot_results(df, trades_log, filename="trading_simulation.png"):
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
+
+    # Validate filename to prevent path traversal
+    if os.path.basename(filename) != filename:
+        raise ValueError("Filename must not contain path components")
+
     plt.savefig(filename)
     logger.info(f"Plot saved to {filename}")
 
