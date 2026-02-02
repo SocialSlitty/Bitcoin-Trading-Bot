@@ -191,6 +191,9 @@ def run_simulation(df, config: SimConfig = None):
     # Pre-extract numpy arrays for performance (avoiding iloc in loop)
     dates_series = df["Date"]
     dates = dates_series.values
+    # Optimization: Pre-calculate date strings to avoid costly strftime in loop
+    date_strings = np.datetime_as_string(dates, unit="D").astype(object)
+
     prices = df["Close"].values
     ema_7s = df["EMA_7"].values
     sma_30s = df["SMA_30"].values
@@ -201,8 +204,8 @@ def run_simulation(df, config: SimConfig = None):
     for i in range(start_idx, len(df)):
         # Direct numpy array access is much faster than df.iloc[i]
         today_date_val = dates[i]
-        # Format date for logging/output (handling numpy datetime64)
-        current_date = pd.Timestamp(today_date_val).strftime("%Y-%m-%d")
+        # Use pre-calculated date string
+        current_date = date_strings[i]
 
         price = prices[i]
         ema_7 = ema_7s[i]
